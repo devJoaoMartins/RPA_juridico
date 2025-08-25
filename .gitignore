@@ -1,0 +1,42 @@
+### Ambiente Virtual ###
+.venv/
+venv/
+env/
+
+### Arquivos do Python ###
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pycache
+
+### Configurações de IDE ###
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+### Arquivos do sistema ###
+.DS_Store
+Thumbs.db
+desktop.ini
+
+### Arquivos de dados e saída ###
+/data/*
+!/data/.gitkeep  # Mantém a pasta no repositório
+/output/*
+!/output/.gitkeep
+
+### Arquivos de ambiente e sensíveis ###
+.env
+*.env
+secrets.py
+config_private.py
+
+### Logs e temporários ###
+*.log
+*.tmp
+*.bak
