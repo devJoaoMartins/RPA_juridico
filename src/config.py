@@ -5,7 +5,7 @@ from pathlib import Path
 MAPPING = {
     # CONTRATANTE
     'RAZÃO SOCIAL SPE': ('CADASTRO DAS OBRAS', 'O27'),
-    'nome_completo_contratante': ('CADASTRO DAS OBRAS', '028'),
+    'nome_completo_contratante': ('CADASTRO DAS OBRAS', 'O28'),
     'endereço_completo_contratante': ('CADASTRO DAS OBRAS', 'O29'),
     'cidade_contratante': ('CADASTRO DAS OBRAS', 'O30'),
     'estado_contratante': ('CADASTRO DAS OBRAS', 'O31'),
@@ -20,16 +20,16 @@ MAPPING = {
 
     # CONTRATADA
     'RAZÃO SOCIAL': ('QUADRO DE CONCORRENCIA', 'H9'),
+    'cnpj_contratada': ('QUADRO DE CONCORRENCIA', 'H10'),
     'endereço_completo_contratada': ('QUADRO DE CONCORRENCIA', 'H11'),
     'cidade_contratada': ('QUADRO DE CONCORRENCIA', 'H12'),
     'estado_contratada': ('QUADRO DE CONCORRENCIA', 'H13'),
-    'cnpj_contratada': ('QUADRO DE CONCORRENCIA', 'H10'),
-    'nome_completo_contratada': ('QUADRO DE CONCORRENCIA', 'H15'),
     'nacionalidade_contratada': ('QUADRO DE CONCORRENCIA', 'H14'),
-    'profissão_contratada': ('QUADRO DE CONCORRENCIA', 'H19'),
-    'rg_contratada': ('QUADRO DE CONCORRENCIA', 'H17'),
+    'nome_completo_contratada': ('QUADRO DE CONCORRENCIA', 'H15'),
     'estado_civil_contratada': ('QUADRO DE CONCORRENCIA', 'H16'),
     'cpf_contratada': ('QUADRO DE CONCORRENCIA', 'H18'),
+    'rg_contratada': ('QUADRO DE CONCORRENCIA', 'H17'),
+    'profissão_contratada': ('QUADRO DE CONCORRENCIA', 'H19'),
     'telefoneContratada': ('QUADRO DE CONCORRENCIA', 'H21'),
     'emailContratada': ('QUADRO DE CONCORRENCIA', 'H22'),
 
@@ -47,12 +47,12 @@ MAPPING = {
     'preço_total': ('QUADRO DE CONCORRENCIA', 'H39'),
 
     # COMPOSIÇÃO
-    'materiais': ('QUADRO DE CONCORRENCIA', 'H49'),
-    'materialPercentual': ('QUADRO DE CONCORRENCIA', 'H48'),
-    'equipamentos': ('QUADRO DE CONCORRENCIA', 'H51'),
-    'equipamentoPercentual': ('QUADRO DE CONCORRENCIA', 'H50'),
+    'maoDeObraPercentual': ('QUADRO DE CONCORRENCIA', 'H46'),
     'mao_de_obra': ('QUADRO DE CONCORRENCIA', 'H47'),
-    'maoDeObraPercentual': ('QUADRO DE CONCORRENCIA', 'H48'),
+    'materialPercentual': ('QUADRO DE CONCORRENCIA', 'H48'),
+    'materiais': ('QUADRO DE CONCORRENCIA', 'H49'),
+    'equipamentoPercentual': ('QUADRO DE CONCORRENCIA', 'H50'),
+    'equipamentos': ('QUADRO DE CONCORRENCIA', 'H51'),
 
     # PRAZO
     'dateInicio': ('QUADRO DE CONCORRENCIA', 'F19'),
@@ -95,6 +95,8 @@ MAPPING = {
     'telAnuente': ('CONTRATO', 'M75'),
     'mailAnuente': ('CONTRATO', 'M76'),
 
+    # OBSERVAÇÕES
+    'observacao': ('QUADRO DE CONCORRENCIA', 'H65')
 
 
 }
@@ -107,5 +109,5 @@ DATA_DIR = BASE_DIR / "data"
 INPUT_DIR = DATA_DIR / "input"
 OUTPUT_DIR = DATA_DIR / "output"
 
-EXCEL_PATH = INPUT_DIR / "template_spreadsheet.xlsm"
+EXCEL_PATH = INPUT_DIR / "template_spreadsheet.xlsx"
 TEMPLATE_PATH = INPUT_DIR / "model_contract.docx"
