@@ -112,17 +112,19 @@ def build_final_pdf(filled_docx: Optional[Path] = None) -> Optional[Path]:
     pdf_docx = tmp_dir / "01_contrato.docx.pdf"
     pdf_quadro = tmp_dir / "02_quadro.pdf"
     pdf_crono = tmp_dir / "03_cronograma.pdf"
+    pdf_check = tmp_dir / "04_checklist.pdf"
     final_pdf = OUTPUT_DIR / f"ContratoFinal_{ts}.pdf"
 
     try:
         _convert_docx_to_pdf(filled_docx, pdf_docx)
         _export_excel_range_to_pdf(EXCEL_PATH, "QUADRO DE CONCORRENCIA", "A1:K131", pdf_quadro, landscape=False)
         _export_excel_range_to_pdf(EXCEL_PATH, "CRONOGRAMA", "B2:T26", pdf_crono, landscape=True)
-        _merge_pdfs([pdf_docx, pdf_quadro, pdf_crono], final_pdf)
+        _export_excel_range_to_pdf(EXCEL_PATH, "CHECKLIST", "B2:E36", pdf_check, landscape=False)
+        _merge_pdfs([pdf_docx, pdf_quadro, pdf_crono, pdf_check], final_pdf)
         return final_pdf
     finally:
         # limpeza best-effort
-        for f in (pdf_docx, pdf_quadro, pdf_crono):
+        for f in (pdf_docx, pdf_quadro, pdf_crono, pdf_check):
             try:
                 if f.exists():
                     f.unlink()
