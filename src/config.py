@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 # Mapeamento completo entre marcadores do Word e células do Excel.
 MAPPING = {
     # CONTRATANTE
@@ -68,6 +69,12 @@ MAPPING = {
     "R2": ('CONTRATO', 'V48'),
     "R3": ('CONTRATO', 'V51'),
 
+    # RETENÇÃO
+    'R4': ('CONTRATO', 'V79'),
+    'R5': ('CONTRATO', 'V80'),
+    'numero': ('CONTRATO', 'W82'),
+    'retencaoMeses': ('CONTRATO', 'W83'),
+
     # PARA CONTRATANTE
     'atencaoContratante': ('CONTRATO', 'M56'),
     'contatoContratante': ('CONTRATO', 'M57'),
@@ -88,7 +95,11 @@ MAPPING = {
     'telAnuente': ('CONTRATO', 'M75'),
     'mailAnuente': ('CONTRATO', 'M76'),
 
+
+
 }
+
+
 
 # raiz do projeto (um nível acima de src)
 BASE_DIR = Path(__file__).resolve().parents[1]

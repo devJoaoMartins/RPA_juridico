@@ -117,9 +117,9 @@ def build_final_pdf(filled_docx: Optional[Path] = None) -> Optional[Path]:
 
     try:
         _convert_docx_to_pdf(filled_docx, pdf_docx)
-        _export_excel_range_to_pdf(EXCEL_PATH, "QUADRO DE CONCORRENCIA", "A1:K131", pdf_quadro, landscape=False)
+        _export_excel_range_to_pdf(EXCEL_PATH, "QUADRO DE CONCORRENCIA", "A1:K133", pdf_quadro, landscape=False)
         _export_excel_range_to_pdf(EXCEL_PATH, "CRONOGRAMA", "B2:T26", pdf_crono, landscape=True)
-        _export_excel_range_to_pdf(EXCEL_PATH, "CHECKLIST", "B2:E36", pdf_check, landscape=False)
+        _export_excel_range_to_pdf(EXCEL_PATH, "QUALIFICACAO", "B2:E36", pdf_check, landscape=False)
         _merge_pdfs([pdf_docx, pdf_quadro, pdf_crono, pdf_check], final_pdf)
         return final_pdf
     finally:
