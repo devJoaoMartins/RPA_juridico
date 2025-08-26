@@ -1,8 +1,5 @@
-# =========================
-# file: src/app.py
 # pyright: reportArgumentType=false
-# GUI minimalista: escolhe Excel e pasta de saída, mostra passos, e gera apenas o PDF final
-# =========================
+
 from __future__ import annotations
 
 import sys
@@ -49,8 +46,7 @@ class App:
         self._build_ui()
         self._wire_logging_to_ui()
 
-        # Import estático para o PyInstaller embutir; faremos reload depois
-        import post_process as _pp  # noqa: F401  (usado no reload)
+        import post_process as _pp
         self._post_process_modname = "post_process"
 
     # ---------- UI ----------
@@ -84,7 +80,7 @@ class App:
         self.btn_run = ttk.Button(frm, text="Gerar contrato", command=self._run_clicked)
         self.btn_run.grid(row=2, column=1, sticky="e", **pad)
 
-        # Progresso + log pequeno
+        # Progresso
         self.pbar = ttk.Progressbar(frm, mode="indeterminate")
         self.pbar.grid(row=3, column=0, columnspan=3, sticky="ew", padx=10, pady=(0, 6))
 
@@ -140,7 +136,7 @@ class App:
             messagebox.showerror("Dados inválidos", "Selecione uma pasta de saída válida.")
             return
 
-        # Limpa log visual
+        # Limpa log
         self.txt_log.configure(state=NORMAL)
         self.txt_log.delete("1.0", END)
         self.txt_log.configure(state=DISABLED)
@@ -154,7 +150,6 @@ class App:
         t.start()
 
     def _setup_logging(self) -> None:
-        # Apenas UI; sem arquivo .log
         root_logger = logging.getLogger()
         for h in list(root_logger.handlers):
             root_logger.removeHandler(h)
@@ -169,13 +164,12 @@ class App:
         self._setup_logging()
         logger = logging.getLogger("app")
         try:
-            # Override mínimo no config (antes do post_process)
+            # Override mínimo no config
             import config
             config.EXCEL_PATH = user_excel
             config.OUTPUT_DIR = user_output_dir
-            config.BASE_DIR = user_output_dir  # sem arquivos fora da saída
+            config.BASE_DIR = user_output_dir
 
-            # Template dentro do bundle (adicionado via --add-data)
             template_path = resource_path(Path("assets") / "model_contract.docx")
             if not template_path.exists():
                 raise FileNotFoundError(
@@ -202,14 +196,12 @@ class App:
 
             logger.info("DOCX gerado com sucesso. Iniciando pós-processamento (PDF final).")
 
-            # Recarrega módulo já empacotado para pegar paths do config atual
             post_process = importlib.reload(importlib.import_module(self._post_process_modname))
             final_pdf = post_process.build_final_pdf(filled_docx)
 
             if not final_pdf:
                 raise RuntimeError("Pós-processamento falhou. Veja as etapas acima.")
 
-            # Remove o DOCX intermediário (somente PDF final fica)
             try:
                 if filled_docx.exists():
                     filled_docx.unlink()
@@ -232,10 +224,10 @@ class App:
         def _show():
             messagebox.showinfo("Concluído", f"PDF final gerado:\n{final_pdf}")
             try:
-                os.startfile(final_pdf)  # abre o PDF final
+                os.startfile(final_pdf)
             except Exception:
                 try:
-                    os.startfile(final_pdf.parent)  # ou pelo menos a pasta
+                    os.startfile(final_pdf.parent) 
                 except Exception:
                     pass
         self.root.after(0, _show)

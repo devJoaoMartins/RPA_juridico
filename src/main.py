@@ -5,8 +5,8 @@ from config import (MAPPING, EXCEL_PATH, TEMPLATE_PATH, OUTPUT_DIR, INPUT_DIR, B
 from excel_reader import ExcelReader
 from word_writer import WordWriter
 
-# NOVO: pós-processamento automático
-from post_process import build_final_pdf  # <- adicionada esta importação
+# pós-processamento automático
+from post_process import build_final_pdf
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,7 +63,6 @@ def main() -> None:
     writer = WordWriter(TEMPLATE_PATH)
     if writer.replace_in_document(replacements, output_path):
         logger.info("DOCX gerado com sucesso. Iniciando pós-processamento (PDF final).")
-        # >>> NOVO: chama o pipeline para exportar áreas do Excel e mesclar tudo
         final_pdf = build_final_pdf(output_path)
         if final_pdf:
             logger.info(f"Processo concluído! PDF final: {final_pdf}")

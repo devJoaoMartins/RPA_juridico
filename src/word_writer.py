@@ -48,4 +48,4 @@ class WordWriter:
                     text = text.replace(k, "" if v is None else str(v))
                     replaced = True
             if replaced:
-                p.text = text  # por quê: captura placeholders quebrados em runs
+                p.text = text  

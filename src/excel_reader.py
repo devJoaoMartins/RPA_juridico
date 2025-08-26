@@ -1,4 +1,3 @@
-# file: excel_reader.py
 from openpyxl import load_workbook
 import logging
 from pathlib import Path
@@ -14,7 +13,6 @@ class ExcelReader:
 
     def __enter__(self):
         try:
-            # por quê: garantir valores resolvidos das fórmulas
             self.wb = load_workbook(self.file_path, data_only=True)
             self.logger.info("Planilha Excel carregada com sucesso")
             return self
@@ -26,15 +24,14 @@ class ExcelReader:
         if self.wb:
             self.wb.close()
 
-    # === Helpers de formatação BR (apenas quando a célula indica % ou R$ no number_format) ===
     @staticmethod
     def _format_brl(value: float) -> str:
         """Formata número como moeda brasileira: R$ 1.234,56.
         por quê: Word/locale podem não estar configurados; formatamos manualmente.
         """
         v = float(value)
-        s = f"{abs(v):,.2f}"  # 1,234.56
-        s = s.replace(",", "X").replace(".", ",").replace("X", ".")  # 1.234,56
+        s = f"{abs(v):,.2f}"
+        s = s.replace(",", "X").replace(".", ",").replace("X", ".")
         sign = "-" if v < 0 else ""
         return f"{sign}R$ {s}"
 
@@ -48,7 +45,6 @@ class ExcelReader:
 
     @staticmethod
     def _format_date_br(value: date | datetime) -> str:
-        # por quê: documento final não deve exibir hora
         d = value.date() if isinstance(value, datetime) else value
         return d.strftime("%d/%m/%Y")
 
@@ -56,10 +52,8 @@ class ExcelReader:
         if not isinstance(value, (int, float)):
             return value
         fmt = (number_format or "").lower()
-        # Percentual: formatos do Excel costumam conter '%'
         if "%" in fmt:
             return self._format_percent_br(value)
-        # Moeda: formatos com 'R$' ou '[$...R$]'
         if "r$" in fmt or "[$" in fmt:
             return self._format_brl(value)
         return value
@@ -71,7 +65,7 @@ class ExcelReader:
             cell_value = cell.value
 
             if cell_value is None:
-                return ""            # Se for data, padroniza como dd/mm/aaaa
+                return ""
             if isinstance(cell_value, (datetime, date)):
                 try:
                     formatted_date = self._format_date_br(cell_value)
@@ -82,7 +76,6 @@ class ExcelReader:
                 )
                 return formatted_date
 
-            # Tenta aplicar formatação apenas quando o Excel sinaliza % ou R$
             try:
                 number_format = getattr(cell, "number_format", "") or ""
                 formatted = self._format_by_number_format(cell_value, number_format)

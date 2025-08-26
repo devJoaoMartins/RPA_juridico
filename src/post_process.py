@@ -1,7 +1,3 @@
-# =========================
-# file: src/post_process.py
-# Ajustes mínimos: sem criação de arquivo .log e limpeza garantida do tmp_dir
-# =========================
 from __future__ import annotations
 import logging
 from pathlib import Path
@@ -9,7 +5,7 @@ from datetime import datetime
 from typing import Iterable, Optional
 from config import BASE_DIR, EXCEL_PATH, OUTPUT_DIR
 
-# Use o logger do app (sem FileHandler aqui)
+# Use o logger do app
 logger = logging.getLogger("post_process")
 
 def _ts() -> str:
