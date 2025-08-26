@@ -63,6 +63,7 @@ MAPPING = {
     'pagamento': ('QUADRO DE CONCORRENCIA', 'H44'),
 
     # OBSERVAÇÃO
+    'observacao': ('QUADRO DE CONCORRENCIA', 'H65'),
 
     # REAJUSTE
     "R1": ('CONTRATO', 'V47'),
@@ -94,10 +95,6 @@ MAPPING = {
     'endAnuente': ('CONTRATO', 'M74'),
     'telAnuente': ('CONTRATO', 'M75'),
     'mailAnuente': ('CONTRATO', 'M76'),
-
-    # OBSERVAÇÕES
-    'observacao': ('QUADRO DE CONCORRENCIA', 'H65')
-
 
 }
 
