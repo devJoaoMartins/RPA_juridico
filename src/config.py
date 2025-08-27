@@ -34,13 +34,14 @@ MAPPING = {
 
     # ANEXOS
     'data_anexoI': ('QUADRO DE CONCORRENCIA', 'F20'),
-    'data_anexoII': ('QUADRO DE CONCORRENCIA', 'F20'),
+    'data_anexo': ('QUADRO DE CONCORRENCIA', 'F20'),
+    'regime_contratacao': ('QUADRO DE CONCORRENCIA', 'H66'),
 
     # OBJETO DA PRESTAÇÃO DE SERVIÇOS
     'concorrencia': ('QUADRO DE CONCORRENCIA', 'D8'),
 
     # LOCAL DOS SERVIÇOS
-    'local_de_serviço': ('QUADRO DE CONCORRENCIA', 'D21'),
+    'local_de_servico': ('QUADRO DE CONCORRENCIA', 'D22'),
 
     # PREÇO
     'preço_total': ('QUADRO DE CONCORRENCIA', 'H39'),
@@ -54,12 +55,12 @@ MAPPING = {
     'equipamentos': ('QUADRO DE CONCORRENCIA', 'H51'),
 
     # PRAZO
-    'dateInicio': ('QUADRO DE CONCORRENCIA', 'F19'),
+    'dateInicio': ('QUADRO DE CONCORRENCIA', 'F20'),
     'dateFim': ('CRONOGRAMA', 'Q9'),
     'dateConcluida': ('QUADRO DE CONCORRENCIA', 'H53'),
 
     # CONDIÇÕES DE PAGAMENTO
-    'pagamento': ('QUADRO DE CONCORRENCIA', 'H44'),
+    'pagamento': ('QUADRO DE CONCORRENCIA', 'H45'),
 
     # OBSERVAÇÃO
     'observacao': ('QUADRO DE CONCORRENCIA', 'H65'),
@@ -72,15 +73,15 @@ MAPPING = {
     # RETENÇÃO
     'R4': ('CONTRATO', 'V79'),
     'R5': ('CONTRATO', 'V80'),
-    'numero': ('CONTRATO', 'W82'),
-    'retencaoMeses': ('CONTRATO', 'W83'),
+    'numero': ('CONTRATO', 'W81'),
+    'retencaoMeses': ('CONTRATO', 'W82'),
 
     # PARA CONTRATANTE
     'atencaoContratante': ('CONTRATO', 'M56'),
     'contatoContratante': ('CONTRATO', 'M57'),
     'endContratante': ('CONTRATO', 'M58'),
     'telContratante': ('CONTRATO', 'M59'),
-    'mailContratante': ('CONTRATO', 'M560'),
+    'mailContratante': ('CONTRATO', 'M60'),
 
     # PARA CONTRATADA
     'atencaoContratada': ('CONTRATO', 'M64'),

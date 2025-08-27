@@ -1,25 +1,27 @@
 # pyright: reportArgumentType=false
-
 from __future__ import annotations
 
 import sys
-import threading
+import os
 import logging
+import threading
+import importlib
 from pathlib import Path
 from datetime import datetime
-from tkinter import Tk, ttk, filedialog, messagebox, StringVar, Text, DISABLED, NORMAL, END
-import importlib
-import os
+
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox, Text, StringVar, DISABLED, NORMAL, END
+
+import post_process  # incluído no bundle; daremos reload após ajustar config
 
 
+# ---------- util ----------
 def resource_path(relative: str | Path) -> Path:
-    """Resolve arquivos de dados no bundle PyInstaller ou no dev."""
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
     return (base / relative).resolve()
 
 
 class TkTextHandler(logging.Handler):
-    """Handler que envia logs para o Text da GUI (por quê: feedback ao usuário)."""
     def __init__(self, text_widget: Text):
         super().__init__()
         self.text_widget = text_widget
@@ -32,103 +34,162 @@ class TkTextHandler(logging.Handler):
         self.text_widget.configure(state=DISABLED)
 
 
+# ---------- app ----------
 class App:
-    def __init__(self, root: Tk) -> None:
+    def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("Contrato RPA")
-        self._center(720, 420)
-        self.root.minsize(660, 360)
+        self.root.title("ContratoRPA")
+        self._center(960, 560)
+        self.root.minsize(820, 520)
 
         self.excel_var = StringVar()
         self.outdir_var = StringVar()
-        self.status_var = StringVar(value="Pronto")
 
-        self._build_ui()
+        # Canvas de fundo (gradiente + logo)
+        self.canvas = tk.Canvas(self.root, highlightthickness=0)
+        self.canvas.place(x=0, y=0, relwidth=1, relheight=1)
+        self.root.bind("<Configure>", self._on_resize)
+
+        # Painel da esquerda (sempre por cima do Canvas)
+        self.left_panel = ttk.Frame(self.root, padding=(16, 16))
+        self._build_left_panel_widgets()
+        self.left_panel.place(x=40, y=110, width=420)  # largura inicial; é ajustada no resize
+
+        # Logging somente na UI
         self._wire_logging_to_ui()
 
-        import post_process as _pp
-        self._post_process_modname = "post_process"
+        # Logo
+        self.logo_img: tk.PhotoImage | None = None
+        logo_path = resource_path(Path("assets") / "logo.png")
+        if logo_path.exists():
+            try:
+                self.logo_img = tk.PhotoImage(file=str(logo_path))
+            except Exception:
+                self.logo_img = None
 
-    # ---------- UI ----------
-    def _build_ui(self) -> None:
+        # Primeira pintura
+        self._redraw()
+
+    # ---------- layout/draw ----------
+    def _center(self, w: int, h: int) -> None:
+        self.root.update_idletasks()
+        sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+        x, y = (sw - w) // 2, (sh - h) // 2
+        self.root.geometry(f"{w}x{h}+{x}+{y}")
+
+    def _on_resize(self, _evt) -> None:
+        self._redraw()
+        # Ajusta largura do painel para caber na área esquerda (55% da janela)
+        w = self.root.winfo_width()
+        left_w = int(max(360, w * 0.55))
+        panel_width = max(320, left_w - 80)
+        self.left_panel.place_configure(width=panel_width)
+
+    def _draw_gradient_and_logo(self) -> None:
+        w = max(1, self.root.winfo_width())
+        h = max(1, self.root.winfo_height())
+        self.canvas.delete("all")
+
+        left_w = int(w * 0.55)
+
+        # fundo branco
+        self.canvas.create_rectangle(0, 0, w, h, fill="#ffffff", outline="")
+
+        # gradiente vertical (pêssego -> azul)
+        start = (246, 218, 204)  # #F6DACC aprox
+        end = (208, 223, 255)    # #D0DFFF aprox
+        steps = h
+        for i in range(steps):
+            r = int(start[0] + (end[0] - start[0]) * (i / steps))
+            g = int(start[1] + (end[1] - start[1]) * (i / steps))
+            b = int(start[2] + (end[2] - start[2]) * (i / steps))
+            self.canvas.create_line(0, i, left_w, i, fill=f"#{r:02x}{g:02x}{b:02x}")
+
+        # divisor
+        self.canvas.create_rectangle(left_w, 0, left_w + 1, h, fill="#e9ecf3", outline="")
+
+        # logo central no lado direito
+        if self.logo_img is not None:
+            img = self.logo_img
+            ih = img.height()
+            target_h = max(1, int(h * 0.45))
+            if ih > target_h:
+                k = max(1, ih // target_h)
+                try:
+                    img = self.logo_img.subsample(k, k)
+                except Exception:
+                    img = self.logo_img
+            cx = left_w + (w - left_w) // 2
+            cy = h // 2
+            self.canvas.create_image(cx, cy, image=img)
+            self._current_logo = img  # manter referência
+
+    def _redraw(self) -> None:
+        self._draw_gradient_and_logo()
+
+    # ---------- left panel ----------
+    def _build_left_panel_widgets(self) -> None:
         style = ttk.Style(self.root)
         try:
             style.theme_use("clam")
         except Exception:
             pass
-        style.configure("TButton", padding=6)
-        style.configure("TLabel", padding=(0, 2))
+        style.configure("TButton", padding=(10, 6))
+        style.configure("TEntry", padding=4)
 
-        pad = {"padx": 10, "pady": 6}
+        # Linha 1: Excel
+        ttk.Label(self.left_panel, text="Arquivo Excel").grid(row=0, column=0, sticky="w")
+        self.ent_excel = ttk.Entry(self.left_panel, textvariable=self.excel_var)
+        self.ent_excel.grid(row=1, column=0, sticky="ew", pady=(2, 8))
+        self.btn_excel = ttk.Button(self.left_panel, text="Selecionar…", command=self._pick_excel)
+        self.btn_excel.grid(row=1, column=1, padx=(8, 0))
 
-        frm = ttk.Frame(self.root)
-        frm.pack(fill="both", expand=True)
+        # Linha 2: Saída
+        ttk.Label(self.left_panel, text="Pasta de saída").grid(row=2, column=0, sticky="w")
+        self.ent_out = ttk.Entry(self.left_panel, textvariable=self.outdir_var)
+        self.ent_out.grid(row=3, column=0, sticky="ew", pady=(2, 8))
+        self.btn_out = ttk.Button(self.left_panel, text="Selecionar…", command=self._pick_outdir)
+        self.btn_out.grid(row=3, column=1, padx=(8, 0))
 
-        # Excel
-        ttk.Label(frm, text="Arquivo Excel:").grid(row=0, column=0, sticky="w", **pad)
-        ent_excel = ttk.Entry(frm, textvariable=self.excel_var)
-        ent_excel.grid(row=0, column=1, sticky="ew", **pad)
-        ttk.Button(frm, text="Selecionar…", command=self._browse_excel).grid(row=0, column=2, **pad)
+        # Ação
+        self.btn_run = ttk.Button(self.left_panel, text="Gerar contrato", command=self._run_clicked)
+        self.btn_run.grid(row=4, column=0, sticky="w", pady=(6, 4))
 
-        # Saída
-        ttk.Label(frm, text="Pasta de saída:").grid(row=1, column=0, sticky="w", **pad)
-        ent_out = ttk.Entry(frm, textvariable=self.outdir_var)
-        ent_out.grid(row=1, column=1, sticky="ew", **pad)
-        ttk.Button(frm, text="Selecionar…", command=self._browse_outdir).grid(row=1, column=2, **pad)
+        # Progresso + etapas
+        self.pbar = ttk.Progressbar(self.left_panel, mode="indeterminate")
+        self.pbar.grid(row=5, column=0, columnspan=2, sticky="ew")
 
-        # Ações
-        self.btn_run = ttk.Button(frm, text="Gerar contrato", command=self._run_clicked)
-        self.btn_run.grid(row=2, column=1, sticky="e", **pad)
+        ttk.Label(self.left_panel, text="Etapas:").grid(row=6, column=0, sticky="w", pady=(6, 0))
+        self.txt_log = Text(self.left_panel, height=6, state=DISABLED, borderwidth=0)
+        self.txt_log.grid(row=7, column=0, columnspan=2, sticky="nsew")
 
-        # Progresso
-        self.pbar = ttk.Progressbar(frm, mode="indeterminate")
-        self.pbar.grid(row=3, column=0, columnspan=3, sticky="ew", padx=10, pady=(0, 6))
+        self.left_panel.columnconfigure(0, weight=1)
+        self.left_panel.rowconfigure(7, weight=1)
 
-        ttk.Label(frm, text="Etapas:").grid(row=4, column=0, sticky="w", padx=10)
-        self.txt_log = Text(frm, height=6, state=DISABLED)
-        self.txt_log.grid(row=5, column=0, columnspan=3, sticky="nsew", padx=10, pady=(0, 10))
-        s = ttk.Scrollbar(frm, command=self.txt_log.yview)
-        s.grid(row=5, column=3, sticky="ns", pady=(0, 10))
-        self.txt_log.configure(yscrollcommand=s.set)
-
-        # Statusbar
-        status = ttk.Label(self.root, textvariable=self.status_var, relief="sunken", anchor="w")
-        status.pack(fill="x", side="bottom")
-
-        # Grid weights
-        frm.columnconfigure(1, weight=1)
-        frm.rowconfigure(5, weight=1)
-
-    def _center(self, w: int, h: int) -> None:
-        self.root.update_idletasks()
-        sw = self.root.winfo_screenwidth()
-        sh = self.root.winfo_screenheight()
-        x = (sw // 2) - (w // 2)
-        y = (sh // 2) - (h // 2)
-        self.root.geometry(f"{w}x{h}+{x}+{y}")
-
+    # ---------- actions ----------
     def _wire_logging_to_ui(self) -> None:
-        self.ui_handler = TkTextHandler(self.txt_log)
-        self.ui_handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
+        for h in list(logging.getLogger().handlers):
+            logging.getLogger().removeHandler(h)
+        handler = TkTextHandler(self.txt_log)
+        handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
+        logging.basicConfig(level=logging.INFO, handlers=[handler])
 
-    def _browse_excel(self) -> None:
-        path = filedialog.askopenfilename(
+    def _pick_excel(self) -> None:
+        p = filedialog.askopenfilename(
             title="Selecione o arquivo Excel",
             filetypes=[("Planilhas Excel", "*.xlsx;*.xlsm"), ("Todos os arquivos", "*.*")],
         )
-        if path:
-            self.excel_var.set(path)
+        if p:
+            self.excel_var.set(p)
 
-    def _browse_outdir(self) -> None:
-        path = filedialog.askdirectory(title="Selecione a pasta de saída")
-        if path:
-            self.outdir_var.set(path)
+    def _pick_outdir(self) -> None:
+        p = filedialog.askdirectory(title="Selecione a pasta de saída")
+        if p:
+            self.outdir_var.set(p)
 
-    # ---------- Execução ----------
     def _run_clicked(self) -> None:
         excel = Path(self.excel_var.get())
         outdir = Path(self.outdir_var.get())
-
         if not excel.exists():
             messagebox.showerror("Dados inválidos", "Selecione um arquivo Excel válido.")
             return
@@ -136,47 +197,27 @@ class App:
             messagebox.showerror("Dados inválidos", "Selecione uma pasta de saída válida.")
             return
 
-        # Limpa log
         self.txt_log.configure(state=NORMAL)
         self.txt_log.delete("1.0", END)
         self.txt_log.configure(state=DISABLED)
 
-        self.status_var.set("Gerando…")
-        self.btn_run.configure(state=DISABLED)
+        self.btn_run.configure(state=tk.DISABLED)
         self.pbar.start(12)
 
-        # Thread para não travar a UI
-        t = threading.Thread(target=self._run_pipeline, args=(excel, outdir), daemon=True)
-        t.start()
-
-    def _setup_logging(self) -> None:
-        root_logger = logging.getLogger()
-        for h in list(root_logger.handlers):
-            root_logger.removeHandler(h)
-
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            handlers=[self.ui_handler],
-        )
+        threading.Thread(target=self._run_pipeline, args=(excel, outdir), daemon=True).start()
 
     def _run_pipeline(self, user_excel: Path, user_output_dir: Path) -> None:
-        self._setup_logging()
         logger = logging.getLogger("app")
         try:
-            # Override mínimo no config
             import config
             config.EXCEL_PATH = user_excel
             config.OUTPUT_DIR = user_output_dir
-            config.BASE_DIR = user_output_dir
+            config.BASE_DIR = user_output_dir  # tudo na pasta de saída
 
             template_path = resource_path(Path("assets") / "model_contract.docx")
             if not template_path.exists():
-                raise FileNotFoundError(
-                    f"Template Word não encontrado no pacote: {template_path}"
-                )
+                raise FileNotFoundError(f"Template Word não encontrado no pacote: {template_path}")
 
-            # Coleta de dados do Excel
             from excel_reader import ExcelReader
             from word_writer import WordWriter
 
@@ -194,11 +235,10 @@ class App:
             if not writer.replace_in_document(replacements, filled_docx):
                 raise RuntimeError("Falha na geração do DOCX.")
 
-            logger.info("DOCX gerado com sucesso. Iniciando pós-processamento (PDF final).")
+            logger.info("DOCX gerado. Iniciando pós-processamento (PDF final)…")
 
-            post_process = importlib.reload(importlib.import_module(self._post_process_modname))
-            final_pdf = post_process.build_final_pdf(filled_docx)
-
+            mod = importlib.reload(post_process)
+            final_pdf = mod.build_final_pdf(filled_docx)
             if not final_pdf:
                 raise RuntimeError("Pós-processamento falhou. Veja as etapas acima.")
 
@@ -209,16 +249,14 @@ class App:
             except Exception:
                 pass
 
-            logger.info("Processo concluído! PDF final: %s", final_pdf)
+            logger.info("Concluído! PDF final: %s", final_pdf)
             self._notify_ok(final_pdf)
-
         except Exception as e:
             logging.getLogger("app").exception("Erro na execução: %s", e)
             self._notify_err(str(e))
         finally:
-            self.status_var.set("Pronto")
-            self.btn_run.configure(state=NORMAL)
             self.pbar.stop()
+            self.btn_run.configure(state=tk.NORMAL)
 
     def _notify_ok(self, final_pdf: Path) -> None:
         def _show():
@@ -227,7 +265,7 @@ class App:
                 os.startfile(final_pdf)
             except Exception:
                 try:
-                    os.startfile(final_pdf.parent) 
+                    os.startfile(final_pdf.parent)
                 except Exception:
                     pass
         self.root.after(0, _show)
@@ -236,8 +274,17 @@ class App:
         self.root.after(0, lambda: messagebox.showerror("Erro", msg))
 
 
+# ---------- main ----------
 def main() -> None:
-    root = Tk()
+    root = tk.Tk()
+    style = ttk.Style(root)
+    try:
+        style.theme_use("clam")
+    except Exception:
+        pass
+    style.configure("TButton", padding=(10, 6))
+    style.configure("TEntry", padding=4)
+
     App(root)
     root.mainloop()
 
