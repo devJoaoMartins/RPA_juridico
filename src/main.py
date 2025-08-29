@@ -1,75 +1,91 @@
+from __future__ import annotations
+
 import logging
 from datetime import datetime
 from pathlib import Path
-from config import (MAPPING, EXCEL_PATH, TEMPLATE_PATH, OUTPUT_DIR, INPUT_DIR, BASE_DIR)
+from typing import Dict, List, Tuple
+
+import config
+from config import BASE_DIR, EXCEL_PATH, INPUT_DIR, MAPPING, OUTPUT_DIR, TEMPLATE_PATH
 from excel_reader import ExcelReader
+from post_process import build_final_pdf
 from word_writer import WordWriter
 
-# pós-processamento automático
-from post_process import build_final_pdf
+config.configure_logging()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(str(BASE_DIR / "contrato_rpa.log"), encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
 
 def _preflight(logger: logging.Logger) -> bool:
-    logger.info(f"BASE esperada: {BASE_DIR}")
-    logger.info(f"Excel esperado : {EXCEL_PATH}")
-    logger.info(f"Modelo Word   : {TEMPLATE_PATH}")
     ok = True
     if not Path(INPUT_DIR).exists():
         logger.error(f"Pasta input não existe: {INPUT_DIR}")
         ok = False
-    else:
-        listing = "\n".join(f" - {p.name}" for p in sorted(Path(INPUT_DIR).iterdir()))
-        logger.info("Conteúdo de data/input:\n" + (listing or " <vazio>"))
     if not Path(EXCEL_PATH).exists():
-        logger.error("Arquivo Excel NÃO encontrado no path acima.")
+        logger.error(f"Excel não encontrado: {EXCEL_PATH}")
         ok = False
     if not Path(TEMPLATE_PATH).exists():
-        logger.error("Modelo Word NÃO encontrado no path acima.")
+        logger.error(f"Template Word não encontrado: {TEMPLATE_PATH}")
         ok = False
     Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
     return ok
 
+
+def _missing_list(values: Dict[str, str]) -> List[Tuple[str, str, str]]:
+    miss: List[Tuple[str, str, str]] = []
+    for marker, (sheet, cell) in MAPPING.items():
+        v = values.get(marker, "")
+        if v is None or str(v).strip() == "":
+            miss.append((marker, sheet, cell))
+    return miss
+
+
+def _safe_msg(e: BaseException | str, default: str = "Ocorreu um erro inesperado.") -> str:
+    s = str(e)
+    return s if s and s.strip() else default
+
+
 def main() -> None:
     logger = logging.getLogger(__name__)
-    logger.info("Iniciando processo de geração de contratos")
-
     if not _preflight(logger):
-        logger.error("Interrompido por paths inválidos.")
         return
 
-    # coleta do Excel
-    replacements = {}
     try:
         with ExcelReader(EXCEL_PATH) as reader:
-            for marker, (sheet, cell) in MAPPING.items():
-                value = reader.get_cell_value(sheet, cell)
-                replacements[marker] = value
-                logger.info(f"Coletado: {marker} → {value}")
+            replacements = reader.read_mapping(MAPPING)
     except Exception as e:
-        logger.error(f"Falha na leitura do Excel: {e}")
+        logger.exception("Falha na leitura do Excel")
+        logger.error(_safe_msg(e, "Falha na leitura do Excel."))
+        return
+
+    missing = _missing_list(replacements)
+    if missing:
+        ts = datetime.now().strftime("%Y-%m-%d_%H%M")
+        report = OUTPUT_DIR / f"campos_vazios_{ts}.txt"
+        try:
+            report.write_text("\n".join(f"{m} — {s}!{c}" for m, s, c in missing), encoding="utf-8")
+        except Exception:
+            pass
+        logger.error(
+            "Existem %d campos obrigatórios sem preenchimento. Preencha no Excel antes de continuar.\n%s",
+            len(missing),
+            "\n".join(f" - {m} — {s}!{c}" for m, s, c in missing),
+        )
         return
 
     timestamp = datetime.now().strftime("%d-%m-%y_%H-%M")
     output_path = Path(OUTPUT_DIR) / f"ContratoPreenchido_{timestamp}.docx"
 
-    writer = WordWriter(TEMPLATE_PATH)
-    if writer.replace_in_document(replacements, output_path):
-        logger.info("DOCX gerado com sucesso. Iniciando pós-processamento (PDF final).")
+    try:
+        writer = WordWriter(TEMPLATE_PATH)
+        if not writer.replace_in_document(replacements, output_path):
+            raise RuntimeError("Falha na geração do DOCX.")
         final_pdf = build_final_pdf(output_path)
-        if final_pdf:
-            logger.info(f"Processo concluído! PDF final: {final_pdf}")
-        else:
-            logger.error("Pós-processamento falhou.")
-    else:
-        logger.error("Falha na geração do contrato")
+        if not final_pdf:
+            raise RuntimeError("Pós-processamento falhou.")
+        logger.info("Processo concluído! PDF final: %s", final_pdf)
+    except Exception as e:
+        logger.exception("Erro na geração")
+        logger.error(_safe_msg(e))
+
 
 if __name__ == "__main__":
     main()

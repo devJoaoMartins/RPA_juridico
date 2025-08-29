@@ -1,12 +1,23 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_all
+
+datas = [('.\\assets\\logo-32.png', 'assets'), ('.\\assets\\logo.png', 'assets'), ('.\\assets\\logo.ico', 'assets'), ('.\\data\\input\\model_contract.docx', 'assets')]
+binaries = []
+hiddenimports = ['win32com.client', 'win32timezone', 'post_process']
+hiddenimports += collect_submodules('win32com')
+tmp_ret = collect_all('openpyxl')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('docx')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
     ['src\\app.py'],
     pathex=['.\\src'],
-    binaries=[],
-    datas=[('.\\data\\input\\model_contract.docx', 'assets')],
-    hiddenimports=['win32timezone', 'post_process', 'tkinter'],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -35,4 +46,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['assets\\logo.ico'],
 )

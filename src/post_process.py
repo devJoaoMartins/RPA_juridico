@@ -1,82 +1,113 @@
 from __future__ import annotations
-import logging
-from pathlib import Path
-from datetime import datetime
-from typing import Iterable, Optional
-from config import BASE_DIR, EXCEL_PATH, OUTPUT_DIR
 
-# Use o logger do app
+import logging
+from contextlib import contextmanager
+from datetime import datetime
+from pathlib import Path
+from typing import Iterable, Optional, Sequence, Tuple
+
+from config import EXCEL_PATH, OUTPUT_DIR
+
 logger = logging.getLogger("post_process")
+
+_WD_EXPORT_PDF = 17
+_XL_TYPE_PDF = 0
+_XL_ORIENT_PORTRAIT = 1
+_XL_ORIENT_LANDSCAPE = 2
 
 def _ts() -> str:
     return datetime.now().strftime("%d-%m-%y")
 
-def _convert_docx_to_pdf(docx_path: Path, out_pdf: Path) -> None:
-    """Usa Word COM diretamente; por quê: evitar travas do docx2pdf."""
-    out_pdf.parent.mkdir(parents=True, exist_ok=True)
+@contextmanager
+def _word_app():
+
     import pythoncom
+
     pythoncom.CoInitialize()
-    word = None
+    app = None
     try:
         import win32com.client as win32  # type: ignore
-        word = win32.DispatchEx("Word.Application")
-        word.Visible = False
-        word.DisplayAlerts = 0
-        doc = word.Documents.Open(str(docx_path))
-        # 17 = wdExportFormatPDF
-        doc.ExportAsFixedFormat(OutputFileName=str(out_pdf), ExportFormat=17)
-        doc.Close(False)
-        logger.info(f"DOCX→PDF via Word COM: {out_pdf}")
-    except Exception as e:
-        logger.error(f"Falha DOCX→PDF: {e}")
-        raise
-    finally:
-        if word is not None:
-            try:
-                word.Quit()
-            except Exception:
-                pass
-        pythoncom.CoUninitialize()
 
-def _export_excel_range_to_pdf(xlsm: Path, sheet: str, rng: str, out_pdf: Path, *, landscape: Optional[bool] = None) -> None:
-    import pythoncom
-    import win32com.client as win32  # type: ignore
-    pythoncom.CoInitialize()
-    excel = None
-    try:
-        excel = win32.DispatchEx("Excel.Application")
-        excel.Visible = False
-        excel.ScreenUpdating = False
-        excel.DisplayAlerts = False
-        wb = excel.Workbooks.Open(str(xlsm), ReadOnly=True, UpdateLinks=0)
-        ws = wb.Worksheets(sheet)
-        ws.PageSetup.PrintArea = rng
-        ps = ws.PageSetup
-        ps.Zoom = False
-        ps.FitToPagesWide = 1
-        ps.FitToPagesTall = False
-        if landscape is not None:
-            ps.Orientation = 2 if landscape else 1  # cronograma é horizontal
-        ws.ExportAsFixedFormat(
-            Type=0,  # PDF
-            Filename=str(out_pdf),
-            Quality=0,
-            IncludeDocProperties=True,
-            IgnorePrintAreas=False,
-            OpenAfterPublish=False,
-        )
-        wb.Close(SaveChanges=False)
-        logger.info(f"Excel→PDF {sheet}!{rng}: {out_pdf}")
-    except Exception as e:
-        logger.error(f"Falha Excel→PDF ({sheet}!{rng}): {e}")
-        raise
+        app = win32.DispatchEx("Word.Application")
+        app.Visible = False
+        app.DisplayAlerts = 0
+        yield app
     finally:
-        if excel is not None:
-            excel.Quit()
-        pythoncom.CoUninitialize()
+        try:
+            if app is not None:
+                app.Quit()
+        finally:
+            pythoncom.CoUninitialize()
+
+
+@contextmanager
+def _excel_app():
+    """
+    Excel COM reusável (uma instância para todos os exports).
+    Por quê: reduz overhead de abrir/fechar instância para cada aba.
+    """
+    import pythoncom
+
+    pythoncom.CoInitialize()
+    app = None
+    try:
+        import win32com.client as win32  # type: ignore
+
+        app = win32.DispatchEx("Excel.Application")
+        app.Visible = False
+        app.ScreenUpdating = False
+        app.DisplayAlerts = False
+        yield app
+    finally:
+        try:
+            if app is not None:
+                app.Quit()
+        finally:
+            pythoncom.CoUninitialize()
+
+
+def _convert_docx_to_pdf(docx_path: Path, out_pdf: Path) -> None:
+    out_pdf.parent.mkdir(parents=True, exist_ok=True)
+    with _word_app() as word:
+        doc = word.Documents.Open(str(docx_path))
+        doc.ExportAsFixedFormat(OutputFileName=str(out_pdf), ExportFormat=_WD_EXPORT_PDF)
+        doc.Close(False)
+        logger.info(f"DOCX→PDF: {out_pdf}")
+
+
+def _export_many_excel_ranges_to_pdf(
+    xlsm: Path,
+    tasks: Sequence[Tuple[str, str, Path, Optional[bool]]],
+) -> None:
+    with _excel_app() as excel:
+        wb = excel.Workbooks.Open(str(xlsm), ReadOnly=True, UpdateLinks=0)
+        try:
+            for sheet, rng, out_pdf, landscape in tasks:
+                out_pdf.parent.mkdir(parents=True, exist_ok=True)
+                ws = wb.Worksheets(sheet)
+                ws.PageSetup.PrintArea = rng
+                ps = ws.PageSetup
+                ps.Zoom = False
+                ps.FitToPagesWide = 1
+                ps.FitToPagesTall = False
+                if landscape is not None:
+                    ps.Orientation = _XL_ORIENT_LANDSCAPE if landscape else _XL_ORIENT_PORTRAIT
+                ws.ExportAsFixedFormat(
+                    Type=_XL_TYPE_PDF,
+                    Filename=str(out_pdf),
+                    Quality=0,
+                    IncludeDocProperties=True,
+                    IgnorePrintAreas=False,
+                    OpenAfterPublish=False,
+                )
+                logger.info(f"Excel→PDF {sheet}!{rng}: {out_pdf}")
+        finally:
+            wb.Close(SaveChanges=False)
+
 
 def _merge_pdfs(pdf_paths: Iterable[Path], out_pdf: Path) -> None:
     from PyPDF2 import PdfMerger
+
     out_pdf.parent.mkdir(parents=True, exist_ok=True)
     merger = PdfMerger()
     try:
@@ -90,8 +121,12 @@ def _merge_pdfs(pdf_paths: Iterable[Path], out_pdf: Path) -> None:
     finally:
         merger.close()
 
+
 def build_final_pdf(filled_docx: Optional[Path] = None) -> Optional[Path]:
-    """Executa todo o pós-processo e retorna o caminho do PDF final (apenas ele fica salvo)."""
+    """
+    Executa o pós-processo completo e retorna o caminho do PDF final.
+    Por quê: consolida conversões e exportações mantendo side-effects controlados.
+    """
     if not EXCEL_PATH.exists():
         logger.error(f"Excel não encontrado: {EXCEL_PATH}")
         return None
@@ -115,15 +150,20 @@ def build_final_pdf(filled_docx: Optional[Path] = None) -> Optional[Path]:
 
     try:
         _convert_docx_to_pdf(filled_docx, pdf_docx)
-        _export_excel_range_to_pdf(EXCEL_PATH, "QUADRO DE CONCORRENCIA", "A1:K134", pdf_quadro, landscape=False)
-        _export_excel_range_to_pdf(EXCEL_PATH, "CRONOGRAMA", "B2:T26", pdf_crono, landscape=True)
-        _export_excel_range_to_pdf(EXCEL_PATH, "QUALIFICACAO", "B2:E36", pdf_check, landscape=False)
+        _export_many_excel_ranges_to_pdf(
+            EXCEL_PATH,
+            [
+                ("QUADRO DE CONCORRENCIA", "A1:K134", pdf_quadro, False),
+                ("CRONOGRAMA", "B2:T26", pdf_crono, True),
+                ("QUALIFICACAO", "B2:E36", pdf_check, False),
+            ],
+        )
         _merge_pdfs([pdf_docx, pdf_quadro, pdf_crono, pdf_check], final_pdf)
         return final_pdf
     finally:
-        # Limpeza garantida do diretório temporário
         try:
             import shutil
+
             shutil.rmtree(tmp_dir, ignore_errors=True)
         except Exception:
             pass
