@@ -2,119 +2,91 @@
 
 ## Resumo
 
-RPA Jurídico é uma ferramenta simples e robusta para preencher modelos de contrato em DOCX a partir de dados contidos em uma planilha Excel (.xlsm) e gerar um PDF final combinando o contrato preenchido com exportações do Excel (quadro e cronograma). Foi projetado para fluxo Windows com suporte opcional a conversão via MS Word COM.
+RPA Jurídico preenche modelos DOCX com dados do Excel (.xlsm), converte/combina em PDF e gera um PDF final pronto para distribuição. Projeto pensado para Windows com automação via COM (Word/Excel) e opção de empacotar como .exe.
 
-## Principais funcionalidades
+## Principais pontos
 
-- Leitura e normalização de valores do Excel (datas, moeda BRL, percentuais).
-- Substituição de placeholders/marcadores no modelo Word, inclusive em tabelas, cabeçalhos e rodapés.
-- Conversão DOCX→PDF (docx2pdf ou Word COM) e exportação de áreas do Excel como PDF.
-- Mesclagem dos PDFs resultantes em um único PDF final pronto para distribuição.
-
-## Arquitetura / arquivos relevantes
-
-- Leitor do Excel: [`excel_reader.ExcelReader`](src/excel_reader.py) — [src/excel_reader.py](src/excel_reader.py)
-- Escritor do Word (substituição de marcadores): [`word_writer.WordWriter`](src/word_writer.py) — [src/word_writer.py](src/word_writer.py)
-- Pós-processamento (conversão e merge): [`post_process.build_final_pdf`](src/post_process.py) — [src/post_process.py](src/post_process.py)
-- Mapeamento entre placeholders e células do Excel: [`config.MAPPING`](src/config.py) — [src/config.py](src/config.py)
-- Orquestrador principal: [src/main.py](src/main.py) — ponto de entrada do processo.
-- Dependências: [requirements.txt](requirements.txt)
-- Regras de Git: [.gitignore](.gitignore)
-- Dados de entrada: [data/input](data/input/) — inclui [data/input/template_spreadsheet.xlsm](data/input/template_spreadsheet.xlsm), [data/input/model_contract.docx](data/input/model_contract.docx) e [data/input/checklist.xlsx](data/input/checklist.xlsx)
-- Saída gerada: [data/output](data/output/)
-- Log principal: [contrato_rpa.log](contrato_rpa.log)
+- Entrada: planilha Excel (.xlsm) e template Word (.docx).
+- Saída: DOCX preenchido e PDF final mesclado.
+- Conversões: usa docx2pdf quando disponível; em Windows tenta Word COM para DOCX→PDF e Excel→PDF.
+- Os caminhos principais são controlados por config.EXCEL_PATH e config.OUTPUT_DIR.
 
 ## Requisitos
 
-- Python 3.10+ (testado em 3.11/3.13).
-- Windows recomendado se planeja usar a conversão via Word COM. docx2pdf pode funcionar em outros sistemas, mas o suporte a export Excel→PDF exige Excel/COM (Windows).
-- Instale as dependências listadas em [requirements.txt](requirements.txt).
+- Windows (recomendado para Excel→PDF via COM).
+- Microsoft Word e Excel instalados (exigidos para exportações/conversões COM).
+- Para desenvolvimento: Python 3.10+ e dependências em requirements.txt.
+- Usuários finais NÃO precisam de Python se receberem o .exe empacotado, mas precisam do Office.
 
-## Instalação rápida
+## Arquivos importantes
 
-1. Clone / copie este repositório e abra o diretório raiz.
-2. Crie e ative um virtualenv:
-   - Windows:
-     python -m venv .venv
-     .venv\Scripts\activate
-   - Unix/macOS:
-     python -m venv .venv
-     source .venv/bin/activate
-3. Instale dependências:
-   pip install -r requirements.txt
+- Código: src/
+- Pós-processo (conversão + merge): src/post_process.py
+- Leitura Excel: src/excel_reader.py
+- Escrita Word: src/word_writer.py
+- Mapeamento: src/config.py (MAPPING, EXCEL_PATH, OUTPUT_DIR)
+- Entradas: data/input/
+- Saída: data/output/
 
-## Uso (modo padrão)
+## Como usar (usuário final)
 
-1. Coloque a planilha Excel com os dados em: [data/input/template_spreadsheet.xlsm](data/input/template_spreadsheet.xlsm).
-2. Ajuste o template Word com os placeholders desejados em: [data/input/model_contract.docx](data/input/model_contract.docx).
-3. Altere o mapeamento entre placeholders e células em: [`config.MAPPING`](src/config.py) — [src/config.py](src/config.py). Cada entrada tem a forma 'placeholder': ('NOME_DA_ABA', 'CÉLULA').
-4. Execute o orquestrador:
-   python src/main.py
+1. Coloque a planilha Excel (padrão em data/input/) ou selecione-a na UI.
+2. Feche Word/Excel antes de executar o programa.
+3. Execute o .exe (duplo clique) ou rode python src/main.py num ambiente com Python.
+4. Se o Windows mostrar aviso SmartScreen: clicar "Mais informações" → "Executar assim mesmo".
+5. Se o executável foi baixado, pode ser necessário desbloqueá‑lo (Propriedades → Desbloquear) ou:
+   - PowerShell: Unblock-File .\seu_programa.exe
 
-Fluxo executado por main.py
+Observação: O .exe empacotado com PyInstaller inclui o runtime Python — o usuário não precisa instalar Python.
 
-- Valida caminhos e presença dos arquivos (ver [src/main.py](src/main.py)).
-- Lê valores do Excel com [`excel_reader.ExcelReader`](src/excel_reader.py) — [src/excel_reader.py](src/excel_reader.py).
-- Substitui marcadores no DOCX com [`word_writer.WordWriter`](src/word_writer.py) — [src/word_writer.py](src/word_writer.py).
-- Salva DOCX preenchido em [data/output](data/output/). Ex.: ContratoPreenchido_DD-MM-AA_HH-MM.docx
-- Executa [`post_process.build_final_pdf`](src/post_process.py) — [src/post_process.py](src/post_process.py) para gerar PDFs e mesclar em ContratoFinal_DD-MM-AA.pdf
+## Empacotamento e distribuição (simples)
 
-## Personalização e manutenção
+- Compactar em ZIP: inclua o .exe, a planilha e este README. ZIP reduz problemas no Google Drive.
+- Comando PyInstaller (exemplo):
+  ```bash
+  pyinstaller --onefile --windowed --add-data "src/assets;assets" src/app.py
+  ```
+- Para reduzir avisos do Windows: assinar digitalmente o executável (Code Signing).
 
-- Mapeamento de placeholders: edite [`config.MAPPING`](src/config.py) — [src/config.py](src/config.py) para adicionar/alterar campos.
-- Templates: mantenha uma cópia "limpa" do template Word sem placeholders para referência: [data/input/model_contract.docx](data/input/model_contract.docx).
-- Ajuste ranges de export no pós-processo em [`post_process.build_final_pdf`](src/post_process.py) — [src/post_process.py](src/post_process.py) (atualmente "A1:K131" para o quadro e "B2:T26" para o cronograma).
-- Logs: verifique [contrato_rpa.log](contrato_rpa.log) para diagnóstico (configuração em [src/main.py](src/main.py) e [src/post_process.py](src/post_process.py)).
+## Comportamento de arquivos temporários
 
-## Saída esperada
+- O pós-processo cria uma pasta temporária em OUTPUT*DIR chamada \_finalData*{ts} para armazenar PDFs intermediários.
+- O código tenta remover essa pasta ao final (best‑effort). Se arquivos continuarem presos, é porque o Windows mantém handles abertos por objetos COM (Word/Excel).
+  Soluções:
+  - Fechar Word/Excel antes de rodar.
+  - Se permanecer, aguardar alguns segundos e excluir manualmente.
+  - Melhorias possíveis no código: adicionar gc.collect(), retries e pequenos delays antes de remover a pasta (ver src/post_process.py).
 
-- DOCX preenchido: data/output/ContratoPreenchido_DD-MM-AA_HH-MM.docx
-- PDF final mesclado: data/output/ContratoFinal_DD-MM-AA.pdf
-- Arquivos temporários de pós-processo são criados em data/output/\_finalData_DD-MM-YY/ e removidos após execução (best-effort).
+## Nomes de arquivos e sobrescrita
 
-## Erros comuns e como resolver
+- Os arquivos gerados incluem timestamp com hora/minuto/segundo (formato %d-%m-%y\_%H-%M-%S) — portanto execuções não costumam sobrescrever saídas anteriores.
+- Se desejar outra estratégia (UUID, contador sequencial), altere a função \_ts() em src/post_process.py.
 
-- "Arquivo Excel NÃO encontrado": confirme que [data/input/template_spreadsheet.xlsm](data/input/template_spreadsheet.xlsm) existe.
-- Marcadores não substituídos: confirme as chaves em [`config.MAPPING`](src/config.py) e se as células referenciadas possuem valor.
-- Falha DOCX→PDF: primeiro tenta usar docx2pdf; se falhar e estiver no Windows, tenta Word COM (MS Word deve estar instalado). Ver [`post_process._convert_docx_to_pdf`](src/post_process.py) — [src/post_process.py](src/post_process.py).
-- Falha Excel→PDF: essa operação usa COM (Excel), logo exige Windows + MS Excel. Consulte [`post_process._export_excel_range_to_pdf`](src/post_process.py) — [src/post_process.py](src/post_process.py).
+## Erros comuns
 
-## Boas práticas
+- "Excel não encontrado": confirme config.EXCEL_PATH aponta para a planilha correta.
+- Falha Excel→PDF: exige Excel/Windows/COM.
+- Pasta _finalData_\* não removida: fechar Office e tentar novamente; ver item acima sobre remoção.
 
-- Faça commits pequenos e use branches para features/bugs.
-- Teste com um conjunto reduzido de dados antes de processar em massa.
-- Evite commitar arquivos sensíveis — veja [.gitignore](.gitignore).
-- Mantenha uma cópia do template original e versionada offline.
+## Boas práticas para compartilhar
 
-## Desenvolvimento e testes
+- ZIP com README e planilha.
+- Instruir usuários a desbloquear o .exe se necessário.
+- Testar o .exe em uma máquina limpa/VM antes de distribuir.
+- Para uso corporativo: assinar o executável ou distribuir via repositório/internal share confiável.
 
-- Código principal está em [src/](src/).
-- Para adicionar testes, crie uma pasta tests/ e configure pytest no CI/local.
-- Verifique logging e mensagens no console para depuração rápida.
+## Desenvolvimento
 
-## Contribuição
+- Recomendado usar virtualenv e instalar requirements.txt.
+- Executar localmente com: python src/main.py
+- Logs: contrato_rpa.log para diagnóstico.
 
-1. Abra uma branch com nome claro (feature/bugfix).
-2. Faça PR com descrição e screenshots (se aplicável).
-3. Atualize [`config.MAPPING`](src/config.py) se adicionar placeholders novos.
+## Suporte / manutenção
 
-## Licença
+- Para mudar mapeamentos, editar src/config.py (MAPPING).
+- Para ajustar ranges exportados, editar src/post_process.py (lista de tasks em build_final_pdf).
+- Para reduzir problemas com pastas temporárias, aplicar retry + gc.collect() no bloco de remoção em src/post_process.py.
 
-Este repositório não contém uma licença definida. Se desejar compartilhá-lo publicamente, adicione um arquivo LICENSE (ex.: MIT) na raiz.
+---
 
-## Contatos e pontos de alteração rápida
-
-- Mapeamentos e paths: [`config.MAPPING`](src/config.py) — [src/config.py](src/config.py)
-- Leitura/formatação Excel: [`excel_reader.ExcelReader`](src/excel_reader.py) — [src/excel_reader.py](src/excel_reader.py)
-- Substituição Word: [`word_writer.WordWriter`](src/word_writer.py) — [src/word_writer.py](src/word_writer.py)
-- Pós-processamento / merge: [`post_process.build_final_pdf`](src/post_process.py) — [src/post_process.py](src/post_process.py)
-- Entrada principal: [src/main.py](src/main.py)
-- Arquivos de entrada: [data/input/template_spreadsheet.xlsm](data/input/template_spreadsheet.xlsm), [data/input/model_contract.docx](data/input/model_contract.docx)
-- Logs: [contrato_rpa.log](contrato_rpa.log)
-
-## Exemplo rápido de execução
-
-1. Ative o ambiente virtual.
-2. pip install -r requirements.txt
-3. python src/main.py
-
+Atualize config.EXCEL_PATH e OUTPUT_DIR conforme seu ambiente antes de distribuir.
