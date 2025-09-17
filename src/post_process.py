@@ -16,7 +16,7 @@ _XL_ORIENT_PORTRAIT = 1
 _XL_ORIENT_LANDSCAPE = 2
 
 def _ts() -> str:
-    return datetime.now().strftime("%d-%m-%y")
+    return datetime.now().strftime("%d-%m-%y_%H-%M-%S")
 
 @contextmanager
 def _word_app():

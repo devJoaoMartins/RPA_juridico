@@ -1,0 +1,20 @@
+Rodar ContratoRPA.exe
+
+
+
+Remove-Item -Recurse -Force .\build, .\dist, .\ContratoRPA.spec -ErrorAction SilentlyContinue
+python -m PyInstaller .\src\app.py `
+--name ContratoRPA `
+--onefile `
+--noconsole `
+--paths .\src `
+--icon .\assets\logo.ico `
+--add-data ".\assets\logo-32.png;assets" `
+--add-data ".\assets\logo.png;assets" `
+--add-data ".\assets\logo.ico;assets" `
+--add-data ".\data\input\model_contract.docx;assets" `
+--hidden-import=win32timezone `
+--hidden-import=post_process `
+--hidden-import=tkinter
+
+Write-Host "OK: dist/ContratoRPA.exe"
